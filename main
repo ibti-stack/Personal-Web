@@ -1,0 +1,35 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up SSH
+      run: |
+        mkdir -p ~/.ssh/
+        echo "$DEPLOY_KEY" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        echo "Host ${{ secrets.HOSTNAME }}
+        HostName ${{ secrets.HOSTNAME }}
+        User ubuntu
+        IdentityFile ~/.ssh/id_rsa
+        StrictHostKeyChecking no" > ~/.ssh/config
+
+    - name: Deploy to EC2
+      env:
+        DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+      run: |
+        ssh -T ubuntu@${{ secrets.HOSTNAME }} <<EOF
+          cd /var/www/html/
+          git pull origin main
+          sudo systemctl restart apache2
+        EOF
